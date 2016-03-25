@@ -1,0 +1,10 @@
+GetNewFactIntent a quote
+GetNewFactIntent a Schrute quote
+GetNewFactIntent tell me a quote
+GetNewFactIntent tell me a Schrute quote
+GetNewFactIntent give me a quote
+GetNewFactIntent give me a Schrute quote
+GetNewFactIntent tell me trivia
+GetNewFactIntent tell me a Schrute trivia
+GetNewFactIntent give me trivia
+GetNewFactIntent give me a Schrute trivia
