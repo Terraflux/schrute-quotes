@@ -1,31 +1,7 @@
-/**
-    Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+'use strict';
 
-    Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at
+var APP_ID = "amzn1.echo-sdk-ams.app.3f554bc4-b6c0-448c-baa7-6651cf32ec26";
 
-        http://aws.amazon.com/apache2.0/
-
-    or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
-*/
-
-/**
- * This simple sample has no external dependencies or session management, and shows the most basic
- * example of how to create a Lambda function for handling Alexa Skill requests.
- *
- * Examples:
- * One-shot model:
- *  User: "Alexa, ask Schrute Quotes for a schrute quote"
- *  Alexa: "Here's your schrute quote: ..."
- */
-
-/**
- * App ID for the skill
- */
-var APP_ID = "amzn1.echo-sdk-ams.app.3f554bc4-b6c0-448c-baa7-6651cf32ec26"; //replace with "amzn1.echo-sdk-ams.app.[your-unique-value-here]";
-
-/**
- * Array containing schrute Quotes.
- */
 var SCHRUTE_QUOTES = [
     "Would I ever leave this company? Look, I’m all about loyalty. In fact, I feel like part of what I’m being paid for here is my loyalty. But if there were somewhere else that valued loyalty more highly… I’m going wherever they value loyalty the most.",
     "I am fast. To give you a reference point I am somewhere between a snake and a mongoose… And a panther.",
@@ -56,86 +32,101 @@ var SCHRUTE_QUOTES = [
     "You couldn’t handle my undivided attention.",
     "I saw Wedding Crashers accidentally. I bought a ticket for “Grizzly Man” and went into the wrong theater. After an hour, I figured I was in the wrong theater, but I kept waiting. Cuz that’s the thing about bear attacks… they come when you least expect it.",
     "Of course Martial arts training is relevant… Uh, I know about a billion Asians that would beg to differ… You know what, you can go to hell, and I will see you there. Burning!",
-    "There are a huge number of yeast infections in this county. Probably because we’re downriver from that old bread factory."
+    "There are a huge number of yeast infections in this county. Probably because we’re downriver from that old bread factory.",
+    "Bears, Beets, Battlestar Galactica."
 ];
 
-/**
- * The AlexaSkill prototype and helper functions
- */
-var AlexaSkill = require('./AlexaSkill');
+exports.handler = function(event, context){
+	try {
+        console.log("session applicationId: " + event.session.application.applicationId);
 
-/**
- * SchruteQuotes is a child of AlexaSkill.
- * To read more about inheritance in JavaScript, see the link below.
- *
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Introduction_to_Object-Oriented_JavaScript#Inheritance
- */
-var SchruteQuotes = function () {
-    AlexaSkill.call(this, APP_ID);
-};
+        if (event.session.application.applicationId !== APP_ID) {
+        	context.fail("Invalid Application ID");
+        }
 
-// Extend AlexaSkill
-SchruteQuotes.prototype = Object.create(AlexaSkill.prototype);
-SchruteQuotes.prototype.constructor = SchruteQuotes;
+        if (!event.session.attributes) {
+            event.session.attributes = {};
+        }
 
-SchruteQuotes.prototype.eventHandlers.onSessionStarted = function (sessionStartedRequest, session) {
-    console.log("SchruteQuotes onSessionStarted requestId: " + sessionStartedRequest.requestId
-        + ", sessionId: " + session.sessionId);
-    // any initialization logic goes here
-};
+        if (event.session.new) {
+        	onSessionStarted(event.request, event.session);
+        }
 
-SchruteQuotes.prototype.eventHandlers.onLaunch = function (launchRequest, session, response) {
-    console.log("SchruteQuotes onLaunch requestId: " + launchRequest.requestId + ", sessionId: " + session.sessionId);
-    handleNewQuoteRequest(response);
-};
-
-/**
- * Overridden to show that a subclass can override this function to teardown session state.
- */
-SchruteQuotes.prototype.eventHandlers.onSessionEnded = function (sessionEndedRequest, session) {
-    console.log("SchruteQuotes onSessionEnded requestId: " + sessionEndedRequest.requestId
-        + ", sessionId: " + session.sessionId);
-    // any cleanup logic goes here
-};
-
-SchruteQuotes.prototype.intentHandlers = {
-    "GetNewQuoteIntent": function (intent, session, response) {
-        handleNewQuoteRequest(response);
-    },
-
-    "AMAZON.HelpIntent": function (intent, session, response) {
-        response.ask("You can ask Schrute Quotes tell me a schrute quote, or, you can say exit... What can I help you with?", "What can I help you with?");
-    },
-
-    "AMAZON.StopIntent": function (intent, session, response) {
-        var speechOutput = "Goodbye";
-        response.tell(speechOutput);
-    },
-
-    "AMAZON.CancelIntent": function (intent, session, response) {
-        var speechOutput = "Goodbye";
-        response.tell(speechOutput);
+        if (event.request.type === "LaunchRequest") {
+        	onLaunch(event.request,
+        		event.session,
+        		function callback(sessionAttributes, speechletResponse) {
+        			context.succeed(buildResponse(sessionAttributes, speechletResponse));
+        		});
+        } else if (event.request.type === "IntentRequest") {
+        	onIntent(event.request,
+        		event.session,
+        		function callback(sessionAttributes, speechletResponse) {
+        			context.succeed(buildResponse(sessionAttributes, speechletResponse));
+        		});
+        } else if (event.request.type === "SessionEndedRequest") {
+        	onSessionEnded(event.request, event.session);
+        	context.succeed();
+        }
+    } catch (e) {
+    	context.fail("Exception: " + e);
     }
 };
 
-/**
- * Gets a random new quote from the list and returns to the user.
- */
-function handleNewQuoteRequest(response) {
-    // Get a random schrute quote from the schrute Quotes list
-    var factIndex = Math.floor(Math.random() * SCHRUTE_QUOTES.length);
-    var quote = SCHRUTE_QUOTES[factIndex];
-
-    // Create speech output
-    var speechOutput = "Here's your schrute quote: " + quote;
-
-    response.tellWithCard(speechOutput, "SchruteQuotes", speechOutput);
+function onSessionStarted(sessionStartedRequest, session) {
+	console.log("onSessionStarted requestId=" + sessionStartedRequest.requestId + ", sessionId=" + session.sessionId);
 }
 
-// Create the handler that responds to the Alexa Request.
-exports.handler = function (event, context) {
-    // Create an instance of the SchruteQuotes skill.
-    var SchruteQuotes = new SchruteQuotes();
-    SchruteQuotes.execute(event, context);
-};
+function onLaunch(launchRequest, session, callback) {
+	console.log("onLaunch requestId=" + launchRequest.requestId
+        + ", sessionId=" + session.sessionId);
+	handleNewQuoteRequest(callback);
+}
 
+function onIntent(intentRequest, session, callback) {
+	console.log("onIntent requestId=" + intentRequest.requestId
+        + ", sessionId=" + session.sessionId);
+
+	var intent = intentRequest.intent;
+	var intentName = intentRequest.intent.name;
+
+	if ("GetNewQuoteIntent" === intentName){
+		handleQuoteRequest(intent, session, callback);
+	} else if ("AMAZON.HelpIntent" === intentName) {
+		handleHelpRequest(intent, session, callback);
+	} else if ("AMAZON.StopIntent" === intentName) {
+		handleEndSessionRequest(intent, session, callback);
+	} else if ("AMAZON.CancelIntent" === intentName) {
+		handleEndSessionRequest(intent, session, callback);
+	} else {
+		throw "Invalid intent";
+	}
+}
+
+function onSessionEnded(sessionEndedRequest, session) {
+	console.log("SchruteQuotes onSessionEnded requestId: " + sessionEndedRequest.requestId
+        + ", sessionId: " + session.sessionId);
+}
+
+function handleQuoteRequest(intent, session, callback) {
+	var quoteIndex = Math.floor(Math.random() * SCHRUTE_QUOTES.length);
+	var quote = SCHRUTE_QUOTES[quoteIndex];
+	var speechOutput = quote;
+	callback(session.attributes, quote)
+}
+
+function handleHelpRequest(intent, session, callback) {
+	callback(session.attributes, "Ask Schrute Quotes for a Schrute Quote by saying tell me a Schrute Quote.")
+}
+
+function handleEndSessionRequest(intent, session, callback) {
+	callback(session.attributes, "The beet farm is closing.")
+}
+
+function buildResponse(sessionAttributes, speechletResponse) {
+	return {
+		version: "1.0",
+		sessionAttributes: sessionAttributes,
+		response: speechletResponse
+	};
+}
